@@ -1,0 +1,29 @@
+#if !defined(CONFIG_H)
+#define CONFIG_H
+
+// Network
+#define WIFI_SSID "xxxxxxxxxxxx"
+#define WIFI_PASS "xxxxxxxxxxxx"
+#define NTP_SERVER "ntp.nict.jp"
+#define TIMEZONE "JST-9"
+
+// B route
+#define BROUTE_ID "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+#define BROUTE_PASSWORD "xxxxxxxxxxxx"
+
+// measurement interval in milliseconds
+#define MEASURE_INTERVAL_MS 10000
+
+// MQTT
+#define MQTT_ENABLE
+#if defined(MQTT_ENABLE)
+#define MQTT_CA_CERTIFICATE_PATH "/ca.pem.crt"
+#define MQTT_CERTIFICATE_PATH "/certificate.pem.crt"
+#define MQTT_PRIVATE_KEY_PATH "/private.pem.key"
+#define MQTT_HOST "xxxxxxxxxxxxxx-ats.iot.region.amazonaws.com"
+#define MQTT_PORT 8883
+#define MQTT_CLIENT_ID "smartMeter"
+#define MQTT_TOPIC "smartMeter/home"
+#endif // defined(MQTT_ENABLE)
+
+#endif // !defined(CONFIG_H)

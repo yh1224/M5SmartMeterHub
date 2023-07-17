@@ -1,18 +1,17 @@
-#include <Arduino.h>
+#include <boost/di.hpp>
 
-// put function declarations here:
-int myFunction(int, int);
+#include "app/App.h"
+
+namespace di = boost::di;
+
+static std::shared_ptr<App> app;
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+    auto injector = di::make_injector();
+    app = injector.create<std::shared_ptr<App>>();
+    app->setup();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
-
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+    app->loop();
 }
