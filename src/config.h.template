@@ -11,8 +11,11 @@
 #define BROUTE_ID "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 #define BROUTE_PASSWORD "xxxxxxxxxxxx"
 
-// measurement interval in milliseconds
-#define MEASURE_INTERVAL_MS 10000
+// measurement interval in seconds
+#define MEASURE_INTERVAL 10
+
+// price per kWh in yen
+#define PRICE_YEN_PER_KWH 36.6
 
 // MQTT
 #define MQTT_ENABLE

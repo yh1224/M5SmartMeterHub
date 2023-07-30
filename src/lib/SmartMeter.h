@@ -1,13 +1,16 @@
-#if !defined(APP_SMART_METER_H)
-#define APP_SMART_METER_H
+#if !defined(LIB_SMART_METER_H)
+#define LIB_SMART_METER_H
 
+#include <map>
 #include <utility>
+#include <Arduino.h>
 
-#include "lib/SmartMeter.h"
-
-class ScanEntry {
+/**
+ * Smart meter entry
+ */
+class MeterEntry {
 public:
-    explicit ScanEntry(String addr, String panId, String channel)
+    explicit MeterEntry(String addr, String panId, String channel)
             : addr(std::move(addr)), panId(std::move(panId)), channel(std::move(channel)) {};
     String panId;
     String channel;
@@ -15,9 +18,12 @@ public:
     String ipv6Addr;
 };
 
-class MeterValues {
+/**
+ * Smart meter measured value
+ */
+class MeterValue {
 public:
-    explicit MeterValues(time_t timestamp, uint32_t instantaneous, uint32_t cumulative, int cumulativePow)
+    explicit MeterValue(time_t timestamp, uint32_t instantaneous, uint32_t cumulative, int cumulativePow)
             : _timestamp(timestamp), _instantaneous(instantaneous), _cumulative(cumulative),
               _cumulativeExp10(cumulativePow) {};
 
@@ -43,41 +49,4 @@ private:
     int _cumulativeExp10;
 };
 
-class SmartMeter {
-public:
-    explicit SmartMeter(const HardwareSerial &serial, int8_t rxPin, int8_t txPin)
-            : _bp35a1(serial), _rxPin(rxPin), _txPin(txPin) {};
-
-    bool connect();
-
-    std::unique_ptr<MeterValues> getMeterValues();
-
-private:
-    HardwareSerial _bp35a1;
-    int8_t _rxPin;
-    int8_t _txPin;
-
-    /// read timeout (ms)
-    int _readTimeout = 5000;
-
-    /// Meter
-    std::unique_ptr<ScanEntry> _meter;
-
-    void _discardBuffer();
-
-    void _sendCommand(const String &data);
-
-    bool _waitResponse(const char *expect);
-
-    std::unique_ptr<String> _readLine();
-
-    void _sendData(const uint8_t *data, int len);
-
-    std::unique_ptr<std::vector<uint8_t>> _recvData(int timeout);
-
-    std::unique_ptr<ScanEntry> _getScanResult(int timeout);
-
-    bool _getJoinResult(int timeout);
-};
-
-#endif // !defined(APP_SMART_METER_H)
+#endif // !defined(LIB_SMART_METER_H)
