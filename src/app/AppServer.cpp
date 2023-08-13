@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <Arduino.h>
 #include <ESP32WebServer.h>
 
@@ -31,8 +33,14 @@ void AppServer::_onLatest() {
     }
     DynamicJsonDocument body(1024);
     body["timestamp"] = data->getTimestamp();
-    body["instantaneous"] = data->getInstantaneous();
-    body["cumulative"] = data->getCumulative();
+    auto instantaneous = data->getInstantaneous();
+    if (instantaneous != nullptr) {
+        body["instantaneous"] = *instantaneous;
+    }
+    auto cumulative = data->getCumulative();
+    if (cumulative != nullptr) {
+        body["cumulative"] = *cumulative;
+    }
     _httpServer.send(200, "text/plain", jsonEncode(body));
 }
 
@@ -42,7 +50,10 @@ void AppServer::_onHistory() {
     for (const auto &v: history) {
         auto entry = body.createNestedObject();
         entry["timestamp"] = v.getTimestamp();
-        entry["cumulative"] = v.getCumulative();
+        auto cumulative = v.getCumulative();
+        if (cumulative != nullptr) {
+            entry["cumulative"] = *cumulative;
+        }
     }
     _httpServer.send(200, "text/plain", jsonEncode(body));
 }

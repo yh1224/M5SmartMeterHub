@@ -12,10 +12,13 @@
 #define BROUTE_PASSWORD "xxxxxxxxxxxx"
 
 // measurement interval in seconds
-#define MEASURE_INTERVAL 10
+#define MEASURE_INTERVAL 15
+
+// publish history interval in seconds
+#define HISTORY_INTERVAL 60
 
 // price per kWh in yen
-#define PRICE_YEN_PER_KWH 36.6
+#define PRICE_YEN_PER_KWH 30.0
 
 // MQTT
 #define MQTT_ENABLE
@@ -25,8 +28,9 @@
 #define MQTT_PRIVATE_KEY_PATH "/private.pem.key"
 #define MQTT_HOST "xxxxxxxxxxxxxx-ats.iot.region.amazonaws.com"
 #define MQTT_PORT 8883
-#define MQTT_CLIENT_ID "smartMeter"
-#define MQTT_TOPIC "smartMeter/home"
+#define MQTT_CLIENT_ID "SmartMeterHub"
+#define MQTT_TOPIC_MEASURED "SmartMeterHub/measured"
+#define MQTT_TOPIC_HISTORY "SmartMeterHub/history"
 #endif // defined(MQTT_ENABLE)
 
 #endif // !defined(CONFIG_H)

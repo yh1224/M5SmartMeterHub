@@ -29,53 +29,12 @@ void AppMeter::setup() {
     );
 }
 
-void showDateTime(time_t now) {
-    struct tm tm{};
-    if (localtime_r(&now, &tm)) {
-        std::stringstream dt;
-        dt << std::put_time(&tm, "%m/%d %H:%M");
-        M5.Display.setTextSize(3);
-        M5.Display.setCursor(16, 8);
-        M5.Display.println(dt.str().c_str());
-    }
-}
-
-void showCurrent(uint32_t value) {
-    if (value > 9999) {
-        value = 9999;
-    }
-    M5.Display.setTextSize(7);
-    M5.Display.setCursor(32, 40);
-    M5.Display.printf("%4u", value);
-    M5.Display.setTextSize(4);
-    M5.Display.setCursor(208, 64);
-    M5.Display.print("W");
-}
-
-void showIntegral(const String &value) {
-    M5.Display.setTextSize(3);
-    M5.Display.setCursor(20, 100);
-    M5.Display.printf("%9s", value.c_str());
-    M5.Display.setTextSize(2);
-    M5.Display.setCursor(192, 108);
-    M5.Display.print("kWh");
-}
-
-void showCost(int value) {
-    M5.Display.setTextSize(3);
-    M5.Display.setCursor(20, 100);
-    M5.Display.printf("%9d", value);
-    M5.Display.setTextSize(2);
-    M5.Display.setCursor(192, 108);
-    M5.Display.print("Yen");
-}
-
 /**
  * Toggle display mode
  */
 void AppMeter::toggleDisplayMode() {
     xSemaphoreTake(_lock, portMAX_DELAY);
-    _displayMode = (_displayMode + 1) % 2;
+    _displayMode = static_cast<DisplayMode>((static_cast<int>(_displayMode) + 1) % DISPLAY_MODE_MAX);
     _updateDisplay();
     xSemaphoreGive(_lock);
 }
@@ -96,6 +55,72 @@ std::vector<MeterValue> AppMeter::getHistory() {
     std::copy(_meterHistory.begin(), _meterHistory.end(), std::back_inserter(ret));
     xSemaphoreGive(_lock);
     return ret;
+}
+
+void showDateTime(time_t now) {
+    struct tm tm{};
+    if (localtime_r(&now, &tm)) {
+        std::stringstream dt;
+        dt << std::put_time(&tm, "%Y/%m/%d %H:%M");
+        M5.Display.setTextSize(2);
+        M5.Display.setCursor(8, 8);
+        M5.Display.println(dt.str().c_str());
+    }
+}
+
+void showCurrent(uint32_t value) {
+    if (value > 9999) {
+        value = 9999;
+    }
+    M5.Display.setTextSize(3);
+    M5.Display.setCursor(144, 32);
+    M5.Display.printf("%4u", value);
+    M5.Display.setTextSize(2);
+    M5.Display.setCursor(220, 40);
+    M5.Display.print("W");
+}
+
+void showIntegral(double value) {
+    M5.Display.setTextSize(3);
+    M5.Display.setCursor(8, 32);
+    M5.Display.printf("%4.1f", value);
+    M5.Display.setTextSize(2);
+    M5.Display.setCursor(84, 40);
+    M5.Display.print("kWh");
+}
+
+void showCost(int value) {
+    M5.Display.setTextSize(3);
+    M5.Display.setCursor(8, 32);
+    M5.Display.printf("%4d", value);
+    M5.Display.setTextSize(2);
+    M5.Display.setCursor(84, 40);
+    M5.Display.print("Yen");
+}
+
+void showHistory(const std::vector<MeterValue> &history, int sx, int sy, int width, int height) {
+    int nX = 24 * 2 * 2; // 48H
+    int w = static_cast<int>(width / nX);
+
+    std::vector<double> deltas;
+    int start = std::max(0, (int) history.size() - nX - 1);
+    double prev = *history[start].getCumulative();
+    for (int i = start + 1; i < history.size(); i++) {
+        double v = *history[i].getCumulative();
+        deltas.push_back(v - prev);
+        prev = v;
+    }
+    double maxDelta = *std::max_element(deltas.begin(), deltas.end());
+
+    M5Canvas canvas(&M5.Display);
+    canvas.createSprite(width, height);
+    for (int i = 0; i < deltas.size(); i++) {
+        auto y = static_cast<int>((deltas[i] / maxDelta) * (double) height);
+        canvas.fillRect(i * w, height - y, w, y, TFT_WHITE);
+    }
+    M5.Display.startWrite();
+    canvas.pushSprite(sx, sy);
+    M5.Display.endWrite();
 }
 
 void AppMeter::_setup() {
@@ -138,14 +163,20 @@ void AppMeter::_loop() {
 void AppMeter::_updateDisplay() {
     M5.Display.fillScreen(BLACK);
     showDateTime(_measured->getTimestamp());
-    showCurrent(_measured->getInstantaneous());
-    if (_displayMode == 1) {
-        auto cost = _getCostToday();
-        if (cost != nullptr) {
-            showCost(*cost);
+    auto instantaneous = _measured->getInstantaneous();
+    if (instantaneous != nullptr) {
+        showCurrent(*instantaneous);
+    }
+    auto usage = _getUsageToday();
+    if (usage != nullptr) {
+        if (_displayMode == DISPLAY_MODE_COST) {
+            showCost(static_cast<int>(*usage * PRICE_YEN_PER_KWH));
+        } else {
+            showIntegral(*usage);
         }
-    } else {
-        showIntegral(_measured->getCumulativeStr());
+    }
+    if (!_meterHistory.empty()) {
+        showHistory(_meterHistory, 24, 80, 232, 40);
     }
 }
 
@@ -162,9 +193,9 @@ std::unique_ptr<MeterValue> AppMeter::_getHistory(time_t timestamp) {
 }
 
 /**
- * Get today's cost (yen)
+ * Get today's usage (kWh)
  */
-std::unique_ptr<int> AppMeter::_getCostToday() {
+std::unique_ptr<double> AppMeter::_getUsageToday() {
     auto now = time(nullptr);
     struct tm tm{};
     if (!localtime_r(&now, &tm)) {
@@ -173,11 +204,12 @@ std::unique_ptr<int> AppMeter::_getCostToday() {
     tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
     time_t timestamp = mktime(&tm);
     auto begin = _getHistory(timestamp);
-    if (_measured == nullptr || begin == nullptr) {
+    if (_measured == nullptr || _measured->getCumulative() == nullptr ||
+        begin == nullptr || begin->getCumulative() == nullptr) {
         return nullptr;
     }
-    auto kwh = _measured->getCumulative() - begin->getCumulative();
-    return std::make_unique<int>(kwh * PRICE_YEN_PER_KWH);
+    auto kwh = *_measured->getCumulative() - *begin->getCumulative();
+    return std::make_unique<double>(kwh);
 }
 
 /**
@@ -201,18 +233,14 @@ bool AppMeter::_measure() {
         }
         this->_failure = 0;
 
-#if defined(MQTT_ENABLE)
-        DynamicJsonDocument message{128};
-        message["timestamp"] = measured->getTimestamp();
-        message["instantaneous"] = measured->getInstantaneous();
-        message["cumulative"] = measured->getCumulative();
-        _mqtt->publish(MQTT_TOPIC, jsonEncode(message));
-#endif // defined(MQTT_ENABLE)
-
         xSemaphoreTake(_lock, portMAX_DELAY);
         _measured = std::move(measured);
         xSemaphoreGive(_lock);
         _lastMeasureTime = now;
+
+#if defined(MQTT_ENABLE)
+        _publishMeasured();
+#endif // defined(MQTT_ENABLE)
 
         return true;
     }
@@ -224,6 +252,8 @@ bool AppMeter::_measure() {
  */
 bool AppMeter::_updateHistory() {
     auto now = time(nullptr);
+    bool needPublish = false;
+
     // get history for last 3 days
     if (_lastHistoryTime == 0 || _lastHistoryTime + 35 * 60 < now) {
         for (int i = _lastHistoryTime == 0 ? 3 : 0; i >= 0; i--) {
@@ -240,7 +270,7 @@ bool AppMeter::_updateHistory() {
                 }
             }
         }
-#if 1 // DEBUG: Log _meter
+#if 1 // DEBUG: Log _meterHistory
         for (const auto &v: _meterHistory) {
             auto t = v.getTimestamp();
             struct tm tm{};
@@ -249,10 +279,46 @@ bool AppMeter::_updateHistory() {
             }
             std::stringstream ss;
             ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
-            Serial.printf("%s: %s\n", ss.str().c_str(), v.getCumulativeStr().c_str());
+            Serial.printf("%s: %d\n", ss.str().c_str(), *v.getCumulative());
         }
-        return true;
 #endif
+        needPublish = true;
+    } else if (!_meterHistory.empty() && _lastHistoryPublishTime + HISTORY_INTERVAL < now) {
+        needPublish = true;
     }
+
+    if (needPublish) {
+#if defined(MQTT_ENABLE)
+        _publishHistory();
+#endif // defined(MQTT_ENABLE)
+        _lastHistoryPublishTime = now;
+        return true;
+    }
+
     return false;
+}
+
+/**
+ * Publish measured data
+ */
+void AppMeter::_publishMeasured() {
+    DynamicJsonDocument message{128};
+    message["timestamp"] = _measured->getTimestamp();
+    message["instantaneous"] = *_measured->getInstantaneous();
+    message["cumulative"] = *_measured->getCumulative();
+#if !defined(MQTT_TOPIC_MEASURED) && defined(MQTT_TOPIC)
+#define MQTT_TOPIC_MEASURED MQTT_TOPIC
+#endif
+    _mqtt->publish(MQTT_TOPIC_MEASURED, jsonEncode(message));
+}
+
+void AppMeter::_publishHistory() {
+    DynamicJsonDocument message{8192};
+    auto arr = message.to<JsonArray>();
+    for (const auto &v: _meterHistory) {
+        auto obj = arr.add();
+        obj["timestamp"] = v.getTimestamp();
+        obj["cumulative"] = *v.getCumulative();
+    }
+    _mqtt->publish(MQTT_TOPIC_HISTORY, jsonEncode(message));
 }

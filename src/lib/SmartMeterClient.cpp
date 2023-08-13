@@ -1,3 +1,4 @@
+#include <iomanip>
 #include <map>
 #include <sstream>
 #include <M5Unified.h>
@@ -177,7 +178,9 @@ std::unique_ptr<std::vector<MeterValue>> SmartMeterClient::getMeterHistory(int d
         if (cumulative == 0xfffffffe) {
             continue;
         }
-        result->push_back(MeterValue(timestamp, 0, cumulative, *_cumulativePow));
+        result->push_back(MeterValue(
+                timestamp, nullptr,
+                std::make_unique<double>(cumulative * pow(10, *_cumulativePow))));
         timestamp += 1800;
         idx += 4;
     }
@@ -209,7 +212,9 @@ std::unique_ptr<MeterValue> SmartMeterClient::getMeterValue() {
     auto instantaneous = e7[0] << 24 | e7[1] << 16 | e7[2] << 8 | e7[3];
     auto e0 = getRes->at(0xe0);
     auto cumulative = e0[0] << 24 | e0[1] << 16 | e0[2] << 8 | e0[3];
-    return std::make_unique<MeterValue>(timestamp, instantaneous, cumulative, *_cumulativePow);
+    return std::make_unique<MeterValue>(
+            timestamp, std::make_unique<uint32_t>(instantaneous),
+            std::make_unique<double>(cumulative * pow(10, *_cumulativePow)));
 }
 
 /**
@@ -478,8 +483,8 @@ SmartMeterClient::_getProperty(const std::vector<uint8_t> &epcs) {
     auto pBuf = sendBuf.get();
     memcpy(pBuf, header, sizeof(header));
     _tid++;
-    pBuf[2] = (uint8_t) ((_tid >> 8) & 0xff);
-    pBuf[3] = (uint8_t) (_tid & 0xff);
+    pBuf[2] = (uint8_t)((_tid >> 8) & 0xff);
+    pBuf[3] = (uint8_t)(_tid & 0xff);
     pBuf += sizeof(header);
     *(pBuf++) = epcs.size(); // OPC
     for (auto epc: epcs) {
@@ -519,8 +524,8 @@ SmartMeterClient::_setProperty(const std::map<uint8_t, std::vector<uint8_t>> &pr
     auto pBuf = sendBuf.get();
     memcpy(pBuf, header, sizeof(header));
     _tid++;
-    pBuf[2] = (uint8_t) ((_tid >> 8) & 0xff);
-    pBuf[3] = (uint8_t) (_tid & 0xff);
+    pBuf[2] = (uint8_t)((_tid >> 8) & 0xff);
+    pBuf[3] = (uint8_t)(_tid & 0xff);
     pBuf += sizeof(header);
     *(pBuf++) = props.size(); // OPC
     for (const auto &prop: props) {

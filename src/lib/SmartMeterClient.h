@@ -4,7 +4,8 @@
 #include <map>
 #include <utility>
 
-#include "lib/SmartMeter.h"
+#include "lib/MeterEntry.h"
+#include "lib/MeterValue.h"
 #include "lib/SmartMeterClient.h"
 
 class SmartMeterClient {

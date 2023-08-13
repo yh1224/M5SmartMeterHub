@@ -5,7 +5,7 @@
 #include <vector>
 
 #include <ArduinoJson.h>
-#include <MQTTClient.h>
+#include <PubSubClient.h>
 #include <WiFiClientSecure.h>
 
 class Mqtt {
@@ -36,7 +36,7 @@ private:
     std::unique_ptr<String> _privateKey;
 
     WiFiClientSecure _client;
-    MQTTClient _mqttClient;
+    PubSubClient _mqttClient{_client};
 
     /// Enabled flag
     bool _enabled = false;

@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <boost/di.hpp>
 
 #include "app/App.h"

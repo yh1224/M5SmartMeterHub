@@ -37,9 +37,6 @@ void App::loop() {
     delay(50);
 }
 
-/**
- * Button A: Random speak mode ON/OFF
- */
 void App::_onButtonA() {
     _meter->toggleDisplayMode();
 }
