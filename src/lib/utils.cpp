@@ -1,3 +1,4 @@
+#include <iomanip>
 #include <sstream>
 #include <vector>
 #include <Arduino.h>
@@ -55,4 +56,13 @@ std::vector<std::string> splitSentence(const std::string &str) {
         tokens.insert(tokens.end(), tempTokens.begin(), tempTokens.end());
     }
     return tokens;
+}
+
+std::string hexString(const uint8_t *data, size_t dataSize) {
+    std::stringstream ss;
+    ss << std::hex << std::setfill('0');
+    for (auto i = 0; i < dataSize; ++i) {
+        ss << std::setw(2) << static_cast<int>(*(data + i));
+    }
+    return ss.str();
 }

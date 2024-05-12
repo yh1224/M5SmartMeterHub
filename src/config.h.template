@@ -7,6 +7,10 @@
 #define NTP_SERVER "ntp.nict.jp"
 #define TIMEZONE "JST-9"
 
+// Wi-SUN module
+#define WISUN_MODULE "BP35A"
+//#define WISUN_MODULE "BP35C"
+
 // B route
 #define BROUTE_ID "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 #define BROUTE_PASSWORD "xxxxxxxxxxxx"

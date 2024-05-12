@@ -7,6 +7,8 @@
 #include "app/AppMeter.h"
 #include "lib/spiffs.h"
 #include "lib/utils.h"
+#include "lib/wisun/BP35A.h"
+#include "lib/wisun/BP35C.h"
 
 void AppMeter::setup() {
     xTaskCreatePinnedToCore(
@@ -138,8 +140,14 @@ void AppMeter::_setup() {
     }
 #endif // defined(MQTT_ENABLE)
 
-    // rxPin: Wi-SUN HAT rev 0.1 の場合は 36 にする
-    _smartMeter = std::make_unique<SmartMeterClient>(Serial2, 26, 0, BROUTE_ID, BROUTE_PASSWORD);
+    std::unique_ptr<WiSUN> wisun;
+    if (strcmp(WISUN_MODULE, "BP35C") == 0) {
+        wisun = std::make_unique<BP35C>(Serial2, 36, 0);
+    } else {
+        // rxPin: Wi-SUN HAT rev 0.1 の場合は 36 にする
+        wisun = std::make_unique<BP35A>(Serial2, 26, 0);
+    }
+    _smartMeter = std::make_unique<SmartMeterClient>(std::move(wisun), BROUTE_ID, BROUTE_PASSWORD);
     if (!_smartMeter->connect()) {
         Serial.println("ERROR: Failed to connect to the smart meter. Rebooting...");
         delay(5000);

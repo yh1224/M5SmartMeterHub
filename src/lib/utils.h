@@ -17,4 +17,6 @@ std::vector<std::string> splitLines(const std::string &str);
 
 std::vector<std::string> splitSentence(const std::string &str);
 
+std::string hexString(const uint8_t *data, size_t dataSize);
+
 #endif // !defined(LIB_UTILS_H)
